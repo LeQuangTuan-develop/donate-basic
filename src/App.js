@@ -17,11 +17,9 @@ function App() {
   useEffect(() => {
     const loadProvider = async () => {
       const provider = await detectEthereumProvider();
-      const contract = await loadContract("Faucet", provider);
-
-      console.log(contract);
 
       if (provider) {
+        const contract = await loadContract("Faucet", provider);
         setWeb3Api({
           provider,
           contract,
@@ -36,11 +34,12 @@ function App() {
 
   useEffect(() => {
     const getAccount = async () => {
+      // console.log(provider.selectedAddress);
       const accounts = await web3Api.web3.eth.getAccounts();
       setAccount(accounts[0]);
     };
     web3Api.web3 && getAccount();
-  }, [web3Api]);
+  }, [web3Api.web3, reload]);
 
   useEffect(() => {
     const loadBalance = async () => {
@@ -51,13 +50,22 @@ function App() {
     web3Api.contract && loadBalance();
   }, [web3Api, reload]);
 
+  useEffect(() => {
+    web3Api.provider &&
+      web3Api.provider.on("accountsChanged", (accounts) => {
+        setReload(!reload);
+      });
+  }, [web3Api.provider, reload]);
+
   const addFunds = async () => {
     const { contract, web3 } = web3Api;
-    await contract.addFunds({
+    const add = await contract.addFunds({
       from: account,
       value: web3.utils.toWei("1", "ether"),
     });
-    reloadEffect();
+    console.log(add);
+    alert("thanh toán thành công");
+    setReload(!reload);
   };
 
   const withdraw = async () => {
@@ -66,18 +74,23 @@ function App() {
     await contract.withdraw(withdrawAmount, {
       from: account,
     });
-    reloadEffect();
+    setReload(!reload);
   };
 
   const connectWallet = () => {
-    web3Api.provider &&
-      web3Api.provider.request({
+    web3Api.provider
+      .request({
         method: "eth_requestAccounts",
+      })
+      .then((result) => {
+        result && setReload(!reload);
       });
   };
 
-  const reloadEffect = () => {
-    setReload(!reload);
+  const getAllFunders = async () => {
+    const { contract } = web3Api;
+    const funders = await contract.getAllFunders();
+    console.log(funders);
   };
 
   return (
@@ -92,8 +105,13 @@ function App() {
         <button className="button is-danger mr-2" onClick={withdraw}>
           Withdraw
         </button>
-        <button className="button is-link" onClick={connectWallet}>
-          Connect Wallet
+        {!account && (
+          <button className="button is-link" onClick={connectWallet}>
+            Connect Wallet
+          </button>
+        )}
+        <button className="button is-warning mr-2" onClick={getAllFunders}>
+          Xem danh sách nhà tài trợ
         </button>
         <p>
           <strong>Accounts Address: </strong>
